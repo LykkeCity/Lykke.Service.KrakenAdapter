@@ -11,6 +11,7 @@ using Lykke.Common.Log;
 using Lykke.Service.KrakenAdapter.Core.Services;
 using Lykke.Service.KrakenAdapter.Services.Instruments;
 using Lykke.Service.KrakenAdapter.Services.KrakenContracts;
+using Lykke.Service.KrakenAdapter.Services.Utils;
 using Microsoft.Extensions.Hosting;
 
 namespace Lykke.Service.KrakenAdapter.Services
@@ -27,7 +28,8 @@ namespace Lykke.Service.KrakenAdapter.Services
         private IDisposable _disposable;
         private InstrumentsConverter _converter;
 
-        public OrderBooksPublishingService(ISettingsService settingsService, ILogFactory logFactory, KrakenOrderBookProcessingSettings settings)
+        public OrderBooksPublishingService(ISettingsService settingsService, ILogFactory logFactory,
+            KrakenOrderBookProcessingSettings settings)
         {
             _logFactory = logFactory;
             _restClient = new RestClient(settingsService.GetApiRetrySettings(), _logFactory);
@@ -73,12 +75,40 @@ namespace Lykke.Service.KrakenAdapter.Services
             {
                 while (!ct.IsCancellationRequested)
                 {
-                    IReadOnlyDictionary<string, AsksAndBids> asksAndBids =
-                        await _restClient.GetOrderBook(instrument, OrderBookDepth);
+                    IReadOnlyDictionary<string, AsksAndBids> asksAndBids;
+
+                    try
+                    {
+                        asksAndBids = await _restClient.GetOrderBook(instrument, OrderBookDepth);
+                    }
+                    catch
+                    {
+                        InternalMetrics.ConnectionErrorsCount
+                            .WithLabels(_converter.FromKrakenInstrument(instrument).Value)
+                            .Inc();
+                        throw;
+                    }
 
                     var orderBook = ConvertOrderBook(instrument, asksAndBids.Values.FirstOrDefault());
 
-                    // _log.Info($"{ob.Asset}: {ob.BestBidPrice} / {ob.BestAskPrice}");
+                    InternalMetrics.OrderBookOutCount
+                        .WithLabels(orderBook.Asset)
+                        .Inc();
+
+                    if (orderBook.Asks.Any() && orderBook.Bids.Any())
+                    {
+                        InternalMetrics.QuoteOutCount
+                            .WithLabels(orderBook.Asset)
+                            .Inc();
+
+                        InternalMetrics.QuoteOutSidePrice
+                            .WithLabels(orderBook.Asset, "ask")
+                            .Set((double) orderBook.Asks.Select(o => o.Price).Min());
+
+                        InternalMetrics.QuoteOutSidePrice
+                            .WithLabels(orderBook.Asset, "bid")
+                            .Set((double) orderBook.Bids.Select(o => o.Price).Max());
+                    }
 
                     orderBooks.OnNext(orderBook);
 

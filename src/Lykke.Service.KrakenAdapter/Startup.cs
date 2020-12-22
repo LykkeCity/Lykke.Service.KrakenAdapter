@@ -10,6 +10,7 @@ using Lykke.Service.KrakenAdapter.Settings;
 using Lykke.Service.KrakenAdapter.Settings.ServiceSettings.TradingApi;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using Prometheus;
 
 namespace Lykke.Service.KrakenAdapter
 {
@@ -58,6 +59,8 @@ namespace Lykke.Service.KrakenAdapter
                     x.UseForwardKrakenExceptionsMiddleware();
                 };
             });
+
+            app.UseMetricServer();
         }
 
         private static ApiCredentials GetCredentials(TradingApiSettings settings, string token)
