@@ -25,7 +25,6 @@
     <PackageReference Include="Lykke.Common.ExchangeAdapter.Server" Version="4.4.0" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Lykke.Service.KrakenAdapter.AzureRepositories\Lykke.Service.KrakenAdapter.AzureRepositories.csproj" />
     <ProjectReference Include="..\Lykke.Service.KrakenAdapter.Core\Lykke.Service.KrakenAdapter.Core.csproj" />
     <ProjectReference Include="..\Lykke.Service.KrakenAdapter.Services\Lykke.Service.KrakenAdapter.Services.csproj" />
   </ItemGroup>
